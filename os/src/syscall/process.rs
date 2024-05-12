@@ -1,8 +1,7 @@
 //! Process management syscalls
 use crate::{
-    config::MAX_SYSCALL_NUM,
-    task::{exit_current_and_run_next, suspend_current_and_run_next, TaskStatus},
-    timer::get_time_us,
+    task::{exit_current_and_run_next, suspend_current_and_run_next, get_current_task_info, TaskInfo, TaskStatus},
+    timer::{get_time_us, get_time_ms},
 };
 
 #[repr(C)]
@@ -12,16 +11,7 @@ pub struct TimeVal {
     pub usec: usize,
 }
 
-/// Task information
-#[allow(dead_code)]
-pub struct TaskInfo {
-    /// Task status in it's life cycle
-    status: TaskStatus,
-    /// The numbers of syscall called by task
-    syscall_times: [u32; MAX_SYSCALL_NUM],
-    /// Total running time of task
-    time: usize,
-}
+
 
 /// task exits and submit an exit code
 pub fn sys_exit(exit_code: i32) -> ! {
@@ -53,5 +43,20 @@ pub fn sys_get_time(ts: *mut TimeVal, _tz: usize) -> isize {
 /// YOUR JOB: Finish sys_task_info to pass testcases
 pub fn sys_task_info(_ti: *mut TaskInfo) -> isize {
     trace!("kernel: sys_task_info");
-    -1
+    let _now: usize = get_time_ms();
+    let current_task_info = get_current_task_info();
+    let total_time = _now - current_task_info.time;
+
+    assert!(current_task_info.status == TaskStatus::Running);
+    // 创建一个更新后的TaskInfo实例
+    unsafe {
+        *_ti = TaskInfo {
+            status: current_task_info.status,
+            syscall_times: current_task_info.syscall_times,
+            time: total_time, // 使用计算出的总时长更新time字段
+        };
+        
+    }
+    0
 }
+
